@@ -1,0 +1,5 @@
+const a = 5;
+mut b = 7;
+b = 8;
+
+alpha_print a;
