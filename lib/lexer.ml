@@ -124,3 +124,40 @@ let next_token lexer =
   in
   read_char lexer;
   token
+
+(** @raise Exceptions.UnexpectedToken *)
+let expect_token lexer token_type =
+  let token = next_token lexer in
+  if TokenType.is_token_type token token_type then token
+  else raise (Exceptions.UnexpectedToken (token, token_type))
+
+let peek_token lexer =
+  let position = lexer.position in
+  let ch = lexer.ch in
+  let row = lexer.row in
+  let col = lexer.col in
+  let last_position = lexer.last_position in
+  skip_whitespace lexer;
+  let token =
+    match lexer.ch with
+    | None ->
+        Token.EOF
+          { file_path = lexer.file_path; col = lexer.col; row = lexer.row }
+    | Some 'a' .. 'z' | Some 'A' .. 'Z' | Some '_' -> read_ident lexer None
+    | Some '0' .. '9' -> read_int lexer None
+    | Some '=' ->
+        if peek_char lexer = Some '=' then (
+          read_char lexer;
+          Token.Eq (create_location lexer 2))
+        else Token.Assign (create_location lexer 1)
+    | Some ';' -> Token.Semicolon (create_location lexer 1)
+    | _ -> Token.Invalid (create_location lexer 1)
+  in
+
+  lexer.position <- position;
+  lexer.ch <- ch;
+  lexer.row <- row;
+  lexer.col <- col;
+  lexer.last_position <- last_position;
+
+  token

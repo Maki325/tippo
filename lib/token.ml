@@ -1,3 +1,5 @@
+open Sexplib.Std
+
 type t =
   | EOF of Location.t
   | Invalid of Location.t
@@ -9,6 +11,7 @@ type t =
   | Eq of Location.t
   | Semicolon of Location.t
   | AlphaPrint of Location.t
+[@@deriving show { with_path = false }, sexp]
 
 let to_string t =
   match t with
