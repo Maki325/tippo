@@ -10,7 +10,7 @@ type declaration = { token : Token.t; is_mutable : bool }
 
 type t =
   | Declare of { declaration : declaration; ident : ident; semicolon : Token.t }
-  | Assing of { ident : ident; eq : Token.t; value : t; semicolon : Token.t }
+  | Assign of { ident : ident; eq : Token.t; value : t; semicolon : Token.t }
   | DeclareAssign of {
       declaration : declaration;
       ident : ident;

@@ -1,5 +1,6 @@
 const a = 5;
-mut b = 7;
-b = 8;
-
 alpha_print a;
+mut b = 7;
+alpha_print b;
+b = 8;
+alpha_print b;

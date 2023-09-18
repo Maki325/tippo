@@ -50,7 +50,6 @@ let read_file filename =
 
 let from_file file_path2 =
   let content = read_file file_path2 in
-  print_endline ("Content: \"" ^ content ^ "\"");
   from_string content ?file_path:(Some file_path2)
 
 let is_whitespace c =
@@ -103,10 +102,6 @@ let rec read_int lexer start =
 
 let next_token lexer =
   skip_whitespace lexer;
-  (* print_endline
-     ("lexer.ch: \""
-     ^ (match lexer.ch with None -> "None" | Some c -> Char.escaped c)
-     ^ "\""); *)
   let token =
     match lexer.ch with
     | None ->
@@ -129,7 +124,7 @@ let next_token lexer =
 let expect_token lexer token_type =
   let token = next_token lexer in
   if TokenType.is_token_type token token_type then token
-  else raise (Exceptions.UnexpectedToken (token, token_type))
+  else raise (Exceptions.UnexpectedToken { expected = token_type; got = token })
 
 let peek_token lexer =
   let position = lexer.position in

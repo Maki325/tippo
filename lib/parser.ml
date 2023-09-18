@@ -1,17 +1,15 @@
 let parse_int token value : Ast.t = Ast.Lit { token; value = Ast.Int value }
 
-let rec parse_program ?(list = []) (lexer : Lexer.t) =
+let rec parse_program ?(list = []) lexer =
   let token = Lexer.next_token lexer in
   match token with
-  | Token.EOF _ -> List.rev list
+  | Token.EOF _ -> Program.from_ast (List.rev list)
   | _ ->
       let list = parse lexer ?token:(Some token) :: list in
       parse_program lexer ?list:(Some list)
 
 and parse ?token lexer : Ast.t =
   let token = match token with Some t -> t | None -> Lexer.next_token lexer in
-  (* let token = Lexer.next_token lexer in *)
-  (* print_endline (Token.to_string token); *)
   match token with
   | Token.Const _ -> parse_declaration lexer token false
   | Token.Mut _ -> parse_declaration lexer token true
@@ -55,7 +53,10 @@ and parse_declaration lexer declaration is_mutable =
           value;
           semicolon;
         }
-  | _ -> raise (Exceptions.UnexpectedToken (next, TokenType.Semicolon))
+  | _ ->
+      raise
+        (Exceptions.UnexpectedToken
+           { expected = TokenType.Semicolon; got = next })
 
 and parse_ident lexer ident name =
   let next = Lexer.next_token lexer in
@@ -66,6 +67,9 @@ and parse_ident lexer ident name =
   | Token.Assign _ ->
       let value = parse lexer in
       let semicolon = Lexer.expect_token lexer TokenType.Semicolon in
-      Ast.Assing
+      Ast.Assign
         { ident = { token = ident; name }; eq = next; value; semicolon }
-  | _ -> raise (Exceptions.UnexpectedToken (next, TokenType.Semicolon))
+  | _ ->
+      raise
+        (Exceptions.UnexpectedToken
+           { expected = TokenType.Semicolon; got = next })
