@@ -20,6 +20,7 @@ type t =
     }
   | Lit of { token : Token.t; value : lit_value }
   | AlphaPrint of { token : Token.t; ident : ident; semicolon : Token.t }
+  | Ident of ident
 [@@deriving show { with_path = false }, sexp]
 
 type program = List of t

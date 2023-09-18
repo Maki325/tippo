@@ -1,3 +1,5 @@
+open Sexplib.Std
+
 type t = {
   file_path : string option;
   content : string;
@@ -8,6 +10,7 @@ type t = {
   mutable col : int;
   mutable last_position : int;
 }
+[@@deriving sexp]
 
 let peek_char lexer =
   if lexer.position >= lexer.len then None

@@ -9,3 +9,5 @@ val expect_token : t -> TokenType.t -> Token.t
 (** [expect_token]
     @raise Exceptions.UnexpectedToken if [Token] isn't of type [TokenType]
 *)
+
+val sexp_of_t : t -> Sexplib.Sexp.t

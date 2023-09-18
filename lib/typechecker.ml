@@ -1,6 +1,10 @@
-let extract_type ast =
+let extract_type (program : Program.t) ast =
   match ast with
   | Ast.Lit lit -> ( match lit.value with Ast.Int _ -> Type.Int)
+  | Ast.Ident ident -> (
+      match Base.Hashtbl.find program.variablesMap ident.name with
+      | Some variable -> variable.ty
+      | None -> raise (Exceptions.UntypedVariable ident))
   | _ -> raise (Exceptions.UnexpectedAst ast)
 
 let rec typecheck (program : Program.t) list =
@@ -29,7 +33,7 @@ let rec typecheck (program : Program.t) list =
           (* last variable with the same name, but for now, we won't *)
           if exists then raise (Exceptions.VariableAlreadyExists ast);
 
-          let ty = extract_type value.value in
+          let ty = extract_type program value.value in
           let variable : Program.variable =
             { ident = value.ident; ty; offset = 0 }
           in
@@ -63,7 +67,7 @@ let rec typecheck (program : Program.t) list =
             | Some v -> v
           in
 
-          let ty = extract_type value.value in
+          let ty = extract_type program value.value in
           match variable.ty with
           | Type.None ->
               ignore

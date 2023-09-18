@@ -26,6 +26,7 @@ and parse ?token lexer : Ast.t =
           ident = { token = ident; name };
           semicolon = Lexer.expect_token lexer TokenType.Semicolon;
         }
+  | Token.Semicolon _ -> parse lexer
   | _ -> assert false
 
 and parse_declaration lexer declaration is_mutable =
@@ -59,12 +60,11 @@ and parse_declaration lexer declaration is_mutable =
            { expected = TokenType.Semicolon; got = next })
 
 and parse_ident lexer ident name =
-  let next = Lexer.next_token lexer in
+  let next = Lexer.peek_token lexer in
   match next with
-  | Token.Semicolon _ ->
-      (* NOP - we can just return the next token *)
-      parse lexer
+  | Token.Semicolon _ -> Ast.Ident { token = ident; name }
   | Token.Assign _ ->
+      ignore (Lexer.next_token lexer);
       let value = parse lexer in
       let semicolon = Lexer.expect_token lexer TokenType.Semicolon in
       Ast.Assign

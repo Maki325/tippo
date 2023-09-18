@@ -84,6 +84,36 @@ and compole_program program file =
   compile_ast program program.ast file;
   Printf.fprintf file "mov rsp, rbp\npop rbp\n"
 
+and compile_assign (ident : Ast.ident) value (program : Program.t) file =
+  let name = ident.name in
+  let variable =
+    match Base.Hashtbl.find program.variablesMap name with
+    | None -> assert false
+    | Some variable -> variable
+  in
+
+  let sign = if variable.offset < 0 then '-' else '+' in
+  let offset = abs variable.offset in
+
+  match value with
+  | Ast.Lit lit_value -> (
+      match lit_value.value with
+      | Ast.Int value ->
+          Printf.fprintf file "mov QWORD [rbp %c %u], %u\n" sign offset value)
+  | Ast.Ident ident ->
+      let from =
+        match Base.Hashtbl.find program.variablesMap ident.name with
+        | None -> assert false
+        | Some variable -> variable
+      in
+
+      let sign_from = if from.offset < 0 then '-' else '+' in
+
+      Printf.fprintf file
+        "push rax\nmov rax, [rbp %c %u]\nmov [rbp %c %u], rax\npop rax\n"
+        sign_from (abs from.offset) sign offset
+  | _ -> assert false
+
 and compile_ast program ast_list file =
   let write str = Printf.fprintf file "%s" str in
   match ast_list with
@@ -110,26 +140,7 @@ and compile_ast program ast_list file =
                   Printf.fprintf file "mov QWORD [rbp %c %u], %u\n" sign offset
                     value)
           | _ -> assert false)
-      | Ast.Assign value -> (
-          let name = value.ident.name in
-          let variable =
-            match Base.Hashtbl.find program.variablesMap name with
-            | None -> assert false
-            | Some variable -> variable
-          in
-
-          let sign = if variable.offset < 0 then '-' else '+' in
-          let offset =
-            if variable.offset < 0 then -variable.offset else variable.offset
-          in
-
-          match value.value with
-          | Ast.Lit lit_value -> (
-              match lit_value.value with
-              | Ast.Int value ->
-                  Printf.fprintf file "mov QWORD [rbp %c %u], %u\n" sign offset
-                    value)
-          | _ -> assert false)
+      | Ast.Assign value -> compile_assign value.ident value.value program file
       | Ast.AlphaPrint value ->
           let name = value.ident.name in
           let variable =
