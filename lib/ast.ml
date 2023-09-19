@@ -8,6 +8,9 @@ type ident = { token : Token.t; name : string }
 type declaration = { token : Token.t; is_mutable : bool }
 [@@deriving show { with_path = false }, sexp]
 
+type binary_operation = { token : Token.t; value : BinaryOperation.t }
+[@@deriving show { with_path = false }, sexp]
+
 type t =
   | Declare of { declaration : declaration; ident : ident; semicolon : Token.t }
   | Assign of { ident : ident; eq : Token.t; value : t; semicolon : Token.t }
@@ -21,6 +24,5 @@ type t =
   | Lit of { token : Token.t; value : lit_value }
   | AlphaPrint of { token : Token.t; ident : ident; semicolon : Token.t }
   | Ident of ident
+  | BinaryOperation of { left : t; op : binary_operation; right : t }
 [@@deriving show { with_path = false }, sexp]
-
-type program = List of t

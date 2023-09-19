@@ -50,10 +50,9 @@ let write_exit file =
   Printf.fprintf file "syscall\n"
 
 let rec compile ?(silent = false) (program : Program.t) file_path =
-  let build_path =
-    Unix.realpath (Filename.concat (Filename.dirname file_path) "./build")
-  in
+  let build_path = Filename.concat (Filename.dirname file_path) "./build" in
   if not (Sys.file_exists build_path) then Sys.mkdir build_path 0o700;
+  let build_path = Unix.realpath build_path in
 
   let file_name = Filename.basename file_path in
   let asm_file_path = Printf.sprintf "%s/%s.asm" build_path file_name in
@@ -81,8 +80,49 @@ let rec compile ?(silent = false) (program : Program.t) file_path =
 and compole_program program file =
   Printf.fprintf file "push rbp\nmov rbp, rsp\nsub rsp, %n\n"
     (Int.abs program.offset);
-  compile_ast program program.ast file;
+  compile_ast_list program program.ast file;
   Printf.fprintf file "mov rsp, rbp\npop rbp\n"
+
+and compile_ident (ident : Ast.ident) (program : Program.t) file =
+  let from =
+    match Base.Hashtbl.find program.variablesMap ident.name with
+    | None -> assert false
+    | Some variable -> variable
+  in
+
+  let sign_from = if from.offset < 0 then '-' else '+' in
+
+  Printf.fprintf file "mov rax, [rbp %c %u]\n" sign_from (abs from.offset)
+
+and compile_lit (lit : Ast.lit_value) file =
+  match lit with Ast.Int value -> Printf.fprintf file "mov rax, %u\n" value
+
+and compile_binary_operation left op right program file =
+  Printf.fprintf file "; Binary Operation Start: %s\n"
+    (Sexplib.Sexp.to_string
+       (Ast.sexp_of_t (Ast.BinaryOperation { left; op; right })));
+  let write str = Printf.fprintf file "%s" str in
+  compile_ast left program file;
+  write "push rbx\npush rax\n";
+  compile_ast right program file;
+  write "mov rbx, rax\npop rax\n";
+
+  (match op.value with
+  | BinaryOperation.Add -> write "add rax, rbx\n"
+  | BinaryOperation.Subtract -> write "sub rax, rbx\n"
+  (* RAX*RBX -> Ends up in RDX and RAX; So we don't need to move them *)
+  | BinaryOperation.Multiply -> write "push rdx\nmul rbx\npop rdx\n"
+  (* [RDX:RAX]/RBX -> Quotient in RAX, Remainder in RDX *)
+  (* We need to set RDX to 0 before dividing. XOR-ing itself is the fastest *)
+  (* In 64-bit mode, still use xor r32, r32, because writing a 32-bit reg zeros the upper 32. *)
+  | BinaryOperation.Divide -> write "push rdx\nxor edx, edx\ndiv rbx\npop rdx\n");
+
+  write "pop rbx\n";
+
+  Printf.fprintf file "; Binary Operation End: %s\n"
+    (Sexplib.Sexp.to_string
+       (Ast.sexp_of_t (Ast.BinaryOperation { left; op; right })));
+  ()
 
 and compile_assign (ident : Ast.ident) value (program : Program.t) file =
   let name = ident.name in
@@ -95,7 +135,9 @@ and compile_assign (ident : Ast.ident) value (program : Program.t) file =
   let sign = if variable.offset < 0 then '-' else '+' in
   let offset = abs variable.offset in
 
-  match value with
+  Printf.fprintf file "; START %s =\n" name;
+
+  (match value with
   | Ast.Lit lit_value -> (
       match lit_value.value with
       | Ast.Int value ->
@@ -112,49 +154,44 @@ and compile_assign (ident : Ast.ident) value (program : Program.t) file =
       Printf.fprintf file
         "push rax\nmov rax, [rbp %c %u]\nmov [rbp %c %u], rax\npop rax\n"
         sign_from (abs from.offset) sign offset
-  | _ -> assert false
+  | Ast.BinaryOperation bo ->
+      Printf.fprintf file "push rax\n";
+      compile_binary_operation bo.left bo.op bo.right program file;
+      Printf.fprintf file "mov [rbp %c %u], rax\npop rax\n" sign offset
+  | _ -> assert false);
 
-and compile_ast program ast_list file =
+  Printf.fprintf file "; END %s =\n" name
+
+and compile_ast ast program file =
   let write str = Printf.fprintf file "%s" str in
+  match ast with
+  | Ast.DeclareAssign value ->
+      compile_assign value.ident value.value program file
+  | Ast.Assign value -> compile_assign value.ident value.value program file
+  | Ast.AlphaPrint value ->
+      let name = value.ident.name in
+      let variable =
+        match Base.Hashtbl.find program.variablesMap name with
+        | None -> assert false
+        | Some variable -> variable
+      in
+
+      let sign = if variable.offset < 0 then '-' else '+' in
+      let offset =
+        if variable.offset < 0 then -variable.offset else variable.offset
+      in
+
+      Printf.fprintf file "mov rdi, [rbp %c %u]\n" sign offset;
+      write "call alpha_print\n"
+  | Ast.Ident ident -> compile_ident ident program file
+  | Ast.Lit lit -> compile_lit lit.value file
+  | Ast.BinaryOperation bo ->
+      compile_binary_operation bo.left bo.op bo.right program file
+  | _ -> ()
+
+and compile_ast_list program ast_list file =
   match ast_list with
   | [] -> ()
   | ast :: rest ->
-      (match ast with
-      | Ast.DeclareAssign value -> (
-          let name = value.ident.name in
-          let variable =
-            match Base.Hashtbl.find program.variablesMap name with
-            | None -> assert false
-            | Some variable -> variable
-          in
-
-          let sign = if variable.offset < 0 then '-' else '+' in
-          let offset =
-            if variable.offset < 0 then -variable.offset else variable.offset
-          in
-
-          match value.value with
-          | Ast.Lit lit_value -> (
-              match lit_value.value with
-              | Ast.Int value ->
-                  Printf.fprintf file "mov QWORD [rbp %c %u], %u\n" sign offset
-                    value)
-          | _ -> assert false)
-      | Ast.Assign value -> compile_assign value.ident value.value program file
-      | Ast.AlphaPrint value ->
-          let name = value.ident.name in
-          let variable =
-            match Base.Hashtbl.find program.variablesMap name with
-            | None -> assert false
-            | Some variable -> variable
-          in
-
-          let sign = if variable.offset < 0 then '-' else '+' in
-          let offset =
-            if variable.offset < 0 then -variable.offset else variable.offset
-          in
-
-          Printf.fprintf file "mov rdi, [rbp %c %u]\n" sign offset;
-          write "call alpha_print\n"
-      | _ -> ());
-      compile_ast program rest file
+      compile_ast ast program file;
+      compile_ast_list program rest file

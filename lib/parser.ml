@@ -1,4 +1,4 @@
-let parse_int token value : Ast.t = Ast.Lit { token; value = Ast.Int value }
+exception ReachedEOF [@@deriving show { with_path = false }, sexp]
 
 let rec parse_program ?(list = []) lexer =
   let token = Lexer.next_token lexer in
@@ -13,7 +13,7 @@ and parse ?token lexer : Ast.t =
   match token with
   | Token.Const _ -> parse_declaration lexer token false
   | Token.Mut _ -> parse_declaration lexer token true
-  | Token.Int (_, value) -> parse_int token value
+  | Token.Int (_, value) -> parse_int lexer token value
   | Token.Ident (_, value) -> parse_ident lexer token value
   | Token.AlphaPrint _ ->
       let ident = Lexer.expect_token lexer TokenType.Ident in
@@ -26,7 +26,6 @@ and parse ?token lexer : Ast.t =
           ident = { token = ident; name };
           semicolon = Lexer.expect_token lexer TokenType.Semicolon;
         }
-  | Token.Semicolon _ -> parse lexer
   | _ -> assert false
 
 and parse_declaration lexer declaration is_mutable =
@@ -45,7 +44,14 @@ and parse_declaration lexer declaration is_mutable =
         }
   | Token.Assign _ ->
       let value = parse lexer in
-      let semicolon = Lexer.expect_token lexer TokenType.Semicolon in
+      let semicolon =
+        match Lexer.is_last_token_of_type lexer TokenType.Semicolon with
+        | `Same tok -> tok
+        | `Different ->
+            raise
+              (Exceptions.UnexpectedToken
+                 { expected = TokenType.Semicolon; got = next })
+      in
       Ast.DeclareAssign
         {
           ident = { token = ident; name };
@@ -59,16 +65,109 @@ and parse_declaration lexer declaration is_mutable =
         (Exceptions.UnexpectedToken
            { expected = TokenType.Semicolon; got = next })
 
+and parse_binary_operation lexer left (binary_operation : Ast.binary_operation)
+    =
+  let right = parse lexer in
+  match right with
+  | Ast.BinaryOperation bo
+    when BinaryOperation.priority bo.op.value
+         < BinaryOperation.priority binary_operation.value ->
+      Ast.BinaryOperation
+        {
+          left =
+            Ast.BinaryOperation { left; op = binary_operation; right = bo.left };
+          right = bo.right;
+          op = bo.op;
+        }
+  | _ -> Ast.BinaryOperation { left; right; op = binary_operation }
+
+and parse_int lexer token value : Ast.t =
+  let next = Lexer.next_token lexer in
+  let lit = Ast.Lit { token; value = Ast.Int value } in
+  match next with
+  | Token.Semicolon _ -> lit
+  | Token.Plus _ ->
+      let ast =
+        parse_binary_operation lexer lit
+          { token = next; value = BinaryOperation.Add }
+      in
+      Lexer.assert_last_token_of_type lexer TokenType.Semicolon;
+      ast
+  | Token.Minus _ ->
+      let ast =
+        parse_binary_operation lexer lit
+          { token = next; value = BinaryOperation.Subtract }
+      in
+      Lexer.assert_last_token_of_type lexer TokenType.Semicolon;
+      ast
+  | Token.Star _ ->
+      let ast =
+        parse_binary_operation lexer lit
+          { token = next; value = BinaryOperation.Multiply }
+      in
+      Lexer.assert_last_token_of_type lexer TokenType.Semicolon;
+      ast
+  | Token.Slash _ ->
+      let ast =
+        parse_binary_operation lexer lit
+          { token = next; value = BinaryOperation.Divide }
+      in
+      Lexer.assert_last_token_of_type lexer TokenType.Semicolon;
+      ast
+  | _ ->
+      raise
+        (Exceptions.UnexpectedToken
+           { expected = TokenType.Semicolon; got = next })
+
 and parse_ident lexer ident name =
-  let next = Lexer.peek_token lexer in
+  let next = Lexer.next_token lexer in
   match next with
   | Token.Semicolon _ -> Ast.Ident { token = ident; name }
   | Token.Assign _ ->
-      ignore (Lexer.next_token lexer);
       let value = parse lexer in
-      let semicolon = Lexer.expect_token lexer TokenType.Semicolon in
+      let semicolon =
+        match Lexer.is_last_token_of_type lexer TokenType.Semicolon with
+        | `Same tok -> tok
+        | `Different ->
+            raise
+              (Exceptions.UnexpectedToken
+                 { expected = TokenType.Semicolon; got = next })
+      in
       Ast.Assign
         { ident = { token = ident; name }; eq = next; value; semicolon }
+  | Token.Plus _ ->
+      let ast =
+        parse_binary_operation lexer
+          (Ast.Ident { token = ident; name })
+          { token = next; value = BinaryOperation.Add }
+      in
+      Lexer.assert_last_token_of_type lexer TokenType.Semicolon;
+      ast
+  | Token.Minus _ ->
+      let ast =
+        parse_binary_operation lexer
+          (Ast.Ident { token = ident; name })
+          { token = next; value = BinaryOperation.Subtract }
+      in
+
+      Lexer.assert_last_token_of_type lexer TokenType.Semicolon;
+      ast
+  | Token.Star _ ->
+      let ast =
+        parse_binary_operation lexer
+          (Ast.Ident { token = ident; name })
+          { token = next; value = BinaryOperation.Multiply }
+      in
+      Lexer.assert_last_token_of_type lexer TokenType.Semicolon;
+      ast
+  | Token.Slash _ ->
+      let ast =
+        parse_binary_operation lexer
+          (Ast.Ident { token = ident; name })
+          { token = next; value = BinaryOperation.Divide }
+      in
+      Lexer.assert_last_token_of_type lexer TokenType.Semicolon;
+      ast
   | _ ->
       raise
         (Exceptions.UnexpectedToken

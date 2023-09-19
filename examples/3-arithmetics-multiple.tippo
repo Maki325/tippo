@@ -1,0 +1,6 @@
+const a = 6;
+const b = 10;
+const c = 3;
+
+const result = a / 2 + b * c - 5 * 4;
+alpha_print result;

@@ -7,6 +7,10 @@ type t =
   | Int
   | Assign
   | Eq
+  | Plus
+  | Minus
+  | Star
+  | Slash
   | Semicolon
   | AlphaPrint
 [@@deriving show { with_path = false }, sexp]
@@ -21,5 +25,9 @@ let is_token_type (token : Token.t) token_type =
   | Int _ -> if token_type = Int then true else false
   | Assign _ -> if token_type = Assign then true else false
   | Eq _ -> if token_type = Eq then true else false
+  | Plus _ -> if token_type = Plus then true else false
+  | Minus _ -> if token_type = Minus then true else false
+  | Star _ -> if token_type = Star then true else false
+  | Slash _ -> if token_type = Slash then true else false
   | Semicolon _ -> if token_type = Semicolon then true else false
   | AlphaPrint _ -> if token_type = AlphaPrint then true else false

@@ -1,4 +1,4 @@
-let lexer = Tippo.Lexer.from_file "./examples/starting-point.tippo"
+let lexer = Tippo.Lexer.from_file "./examples/3-arithmetics-multiple.tippo"
 let program = Tippo.Parser.parse_program lexer
 
 let _run_log () =
@@ -9,7 +9,7 @@ let _run_log () =
 
 let _run () =
   Tippo.Typechecker.typecheck program program.ast;
-  Tippo.Compiler.compile program "./examples/starting-point"
+  Tippo.Compiler.compile program "./examples/out/3-arithmetics-multiple"
 ;;
 
 _run ()

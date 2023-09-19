@@ -9,6 +9,7 @@ type t = {
   mutable row : int;
   mutable col : int;
   mutable last_position : int;
+  mutable last_token : Token.t;
 }
 [@@deriving sexp]
 
@@ -34,6 +35,7 @@ let from_string ?file_path content =
       row = 1;
       col = 1;
       last_position = 0;
+      last_token = Invalid { col = 0; row = -1; file_path };
     }
   in
   read_char lexer;
@@ -117,10 +119,15 @@ let next_token lexer =
           read_char lexer;
           Token.Eq (create_location lexer 2))
         else Token.Assign (create_location lexer 1)
+    | Some '+' -> Token.Plus (create_location lexer 1)
+    | Some '-' -> Token.Minus (create_location lexer 1)
+    | Some '*' -> Token.Star (create_location lexer 1)
+    | Some '/' -> Token.Slash (create_location lexer 1)
     | Some ';' -> Token.Semicolon (create_location lexer 1)
     | _ -> Token.Invalid (create_location lexer 1)
   in
   read_char lexer;
+  lexer.last_token <- token;
   token
 
 (** @raise Exceptions.UnexpectedToken *)
@@ -135,27 +142,28 @@ let peek_token lexer =
   let row = lexer.row in
   let col = lexer.col in
   let last_position = lexer.last_position in
-  skip_whitespace lexer;
-  let token =
-    match lexer.ch with
-    | None ->
-        Token.EOF
-          { file_path = lexer.file_path; col = lexer.col; row = lexer.row }
-    | Some 'a' .. 'z' | Some 'A' .. 'Z' | Some '_' -> read_ident lexer None
-    | Some '0' .. '9' -> read_int lexer None
-    | Some '=' ->
-        if peek_char lexer = Some '=' then (
-          read_char lexer;
-          Token.Eq (create_location lexer 2))
-        else Token.Assign (create_location lexer 1)
-    | Some ';' -> Token.Semicolon (create_location lexer 1)
-    | _ -> Token.Invalid (create_location lexer 1)
-  in
+  let last_token = lexer.last_token in
+
+  let token = next_token lexer in
 
   lexer.position <- position;
   lexer.ch <- ch;
   lexer.row <- row;
   lexer.col <- col;
   lexer.last_position <- last_position;
+  lexer.last_token <- last_token;
 
   token
+
+let is_last_token_of_type lexer token_type =
+  match TokenType.is_token_type lexer.last_token token_type with
+  | true -> `Same lexer.last_token
+  | false -> `Different
+
+let assert_last_token_of_type lexer token_type =
+  match TokenType.is_token_type lexer.last_token token_type with
+  | true -> ()
+  | false ->
+      raise
+        (Exceptions.UnexpectedToken
+           { expected = token_type; got = lexer.last_token })

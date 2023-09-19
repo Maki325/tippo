@@ -1,0 +1,14 @@
+const a = 6;
+alpha_print a;
+const b = 10;
+alpha_print b;
+
+const sum = a + b;
+alpha_print sum;
+const differrence = b - a;
+alpha_print differrence;
+
+const product = a * b;
+alpha_print product;
+const quotient = b / a;
+alpha_print quotient;

@@ -9,6 +9,10 @@ type t =
   | Int of Location.t * int
   | Assign of Location.t
   | Eq of Location.t
+  | Plus of Location.t
+  | Minus of Location.t
+  | Star of Location.t
+  | Slash of Location.t
   | Semicolon of Location.t
   | AlphaPrint of Location.t
 [@@deriving show { with_path = false }, sexp]

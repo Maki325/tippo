@@ -1,10 +1,16 @@
-let extract_type (program : Program.t) ast =
+let rec extract_type (program : Program.t) ast =
   match ast with
   | Ast.Lit lit -> ( match lit.value with Ast.Int _ -> Type.Int)
   | Ast.Ident ident -> (
       match Base.Hashtbl.find program.variablesMap ident.name with
       | Some variable -> variable.ty
       | None -> raise (Exceptions.UntypedVariable ident))
+  | Ast.BinaryOperation bo ->
+      let left = extract_type program bo.left in
+      let right = extract_type program bo.right in
+      if left != right then
+        raise (Exceptions.UnexpectedType { expected = left; got = right });
+      left
   | _ -> raise (Exceptions.UnexpectedAst ast)
 
 let rec typecheck (program : Program.t) list =
@@ -80,5 +86,6 @@ let rec typecheck (program : Program.t) list =
                   (Exceptions.UnexpectedType
                      { expected = variable.ty; got = ty });
               ())
-      | _ -> ());
+      | Ast.AlphaPrint _ -> ()
+      | _ -> ignore (extract_type program ast));
       typecheck program rest
