@@ -49,6 +49,32 @@ let write_exit file =
   Printf.fprintf file "mov rax, 60\n";
   Printf.fprintf file "syscall\n"
 
+let stringify_binary_operation_value op =
+  match op with
+  | BinaryOperation.Add -> " + "
+  | BinaryOperation.Subtract -> " - "
+  | BinaryOperation.Multiply -> " * "
+  | BinaryOperation.Divide -> " / "
+
+let rec stringify_binary_operation ast : string =
+  match ast with
+  | Ast.BinaryOperation { left; right; op } ->
+      "["
+      ^ stringify_binary_operation left
+      ^ "]"
+      ^ stringify_binary_operation_value op.value
+      ^ "["
+      ^ stringify_binary_operation right
+      ^ "]"
+  | Ast.Ident ident -> ident.name
+  | Ast.Lit value -> (
+      match value.value with Ast.Int value -> Int.to_string value)
+  | Ast.PriorityGroup pg ->
+      "(" ^ stringify_binary_operation (List.nth pg.group 0) ^ ")"
+  | _ ->
+      Utils.print_source (Ast.sexp_of_t ast :: []);
+      assert false
+
 let rec compile ?(silent = false) (program : Program.t) file_path =
   let build_path = Filename.concat (Filename.dirname file_path) "./build" in
   if not (Sys.file_exists build_path) then Sys.mkdir build_path 0o700;
@@ -99,8 +125,7 @@ and compile_lit (lit : Ast.lit_value) file =
 
 and compile_binary_operation left op right program file =
   Printf.fprintf file "; Binary Operation Start: %s\n"
-    (Sexplib.Sexp.to_string
-       (Ast.sexp_of_t (Ast.BinaryOperation { left; op; right })));
+    (stringify_binary_operation (Ast.BinaryOperation { left; op; right }));
   let write str = Printf.fprintf file "%s" str in
   compile_ast left program file;
   write "push rbx\npush rax\n";
@@ -120,8 +145,7 @@ and compile_binary_operation left op right program file =
   write "pop rbx\n";
 
   Printf.fprintf file "; Binary Operation End: %s\n"
-    (Sexplib.Sexp.to_string
-       (Ast.sexp_of_t (Ast.BinaryOperation { left; op; right })));
+    (stringify_binary_operation (Ast.BinaryOperation { left; op; right }));
   ()
 
 and compile_assign (ident : Ast.ident) value (program : Program.t) file =
