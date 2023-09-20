@@ -11,6 +11,13 @@ let rec extract_type (program : Program.t) ast =
       if left != right then
         raise (Exceptions.UnexpectedType { expected = left; got = right });
       left
+  | Ast.PriorityGroup pg ->
+      if List.length pg.group != 1 then
+        raise (Exceptions.ArithmeticPriorityGroupMoreThanOneChild ast);
+      let item = List.nth pg.group 0 in
+      let item_type = extract_type program item in
+      (match item_type with Type.None -> assert false | _ -> ());
+      item_type
   | _ -> raise (Exceptions.UnexpectedAst ast)
 
 let rec typecheck (program : Program.t) list =

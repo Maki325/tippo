@@ -124,6 +124,8 @@ let next_token lexer =
     | Some '*' -> Token.Star (create_location lexer 1)
     | Some '/' -> Token.Slash (create_location lexer 1)
     | Some ';' -> Token.Semicolon (create_location lexer 1)
+    | Some '(' -> Token.OpenParen (create_location lexer 1)
+    | Some ')' -> Token.CloseParen (create_location lexer 1)
     | _ -> Token.Invalid (create_location lexer 1)
   in
   read_char lexer;
@@ -159,6 +161,8 @@ let is_last_token_of_type lexer token_type =
   match TokenType.is_token_type lexer.last_token token_type with
   | true -> `Same lexer.last_token
   | false -> `Different
+
+let get_last_token lexer = lexer.last_token
 
 let assert_last_token_of_type lexer token_type =
   match TokenType.is_token_type lexer.last_token token_type with

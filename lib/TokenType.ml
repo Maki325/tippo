@@ -12,6 +12,8 @@ type t =
   | Star
   | Slash
   | Semicolon
+  | OpenParen
+  | CloseParen
   | AlphaPrint
 [@@deriving show { with_path = false }, sexp]
 
@@ -30,4 +32,6 @@ let is_token_type (token : Token.t) token_type =
   | Star _ -> if token_type = Star then true else false
   | Slash _ -> if token_type = Slash then true else false
   | Semicolon _ -> if token_type = Semicolon then true else false
+  | OpenParen _ -> if token_type = OpenParen then true else false
+  | CloseParen _ -> if token_type = CloseParen then true else false
   | AlphaPrint _ -> if token_type = AlphaPrint then true else false

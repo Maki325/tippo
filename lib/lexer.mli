@@ -13,6 +13,8 @@ val assert_last_token_of_type : t -> TokenType.t -> unit
     @raise Exceptions.UnexpectedToken if [Token] isn't of type [TokenType]
 *)
 
+val get_last_token : t -> Token.t
+
 val expect_token : t -> TokenType.t -> Token.t
 (** [expect_token]
     @raise Exceptions.UnexpectedToken if [Token] isn't of type [TokenType]

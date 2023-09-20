@@ -14,3 +14,6 @@ exception UndeclaredVariable of Ast.t
 
 exception UntypedVariable of Ast.ident
 [@@deriving show { with_path = false }, sexp]
+
+exception ArithmeticPriorityGroupMoreThanOneChild of Ast.t
+[@@deriving show { with_path = false }, sexp]

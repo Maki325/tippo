@@ -14,5 +14,7 @@ type t =
   | Star of Location.t
   | Slash of Location.t
   | Semicolon of Location.t
+  | OpenParen of Location.t
+  | CloseParen of Location.t
   | AlphaPrint of Location.t
 [@@deriving show { with_path = false }, sexp]

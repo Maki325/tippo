@@ -187,7 +187,11 @@ and compile_ast ast program file =
   | Ast.Lit lit -> compile_lit lit.value file
   | Ast.BinaryOperation bo ->
       compile_binary_operation bo.left bo.op bo.right program file
-  | _ -> ()
+  | Ast.PriorityGroup pg ->
+      List.iter (fun ast -> compile_ast ast program file) pg.group
+  | _ ->
+      Utils.print_source (Ast.sexp_of_t ast :: []);
+      assert false
 
 and compile_ast_list program ast_list file =
   match ast_list with

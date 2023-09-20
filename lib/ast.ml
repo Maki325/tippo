@@ -25,4 +25,9 @@ type t =
   | AlphaPrint of { token : Token.t; ident : ident; semicolon : Token.t }
   | Ident of ident
   | BinaryOperation of { left : t; op : binary_operation; right : t }
+  | PriorityGroup of {
+      open_paren : Token.t;
+      close_paren : Token.t;
+      group : t list;
+    }
 [@@deriving show { with_path = false }, sexp]
