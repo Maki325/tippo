@@ -109,7 +109,8 @@ and compole_program program file =
   compile_ast_list program program.ast file;
   Printf.fprintf file "mov rsp, rbp\npop rbp\n"
 
-and compile_ident (ident : Ast.ident) (program : Program.t) file =
+and compile_ident ?(reg = Register.REG_A) (ident : Ast.ident)
+    (program : Program.t) file =
   let from =
     match Base.Hashtbl.find program.variablesMap ident.name with
     | None -> assert false
@@ -118,20 +119,31 @@ and compile_ident (ident : Ast.ident) (program : Program.t) file =
 
   let sign_from = if from.offset < 0 then '-' else '+' in
 
-  Printf.fprintf file "mov rax, [rbp %c %u]\n" sign_from (abs from.offset)
+  Printf.fprintf file "mov %s, [rbp %c %u]\n" (Register.get_64bit reg) sign_from
+    (abs from.offset)
 
-and compile_lit (lit : Ast.lit_value) file =
-  match lit with Ast.Int value -> Printf.fprintf file "mov rax, %u\n" value
+and compile_lit ?(reg = Register.REG_A) (lit : Ast.lit_value) file =
+  match lit with
+  | Ast.Int value ->
+      Printf.fprintf file "mov %s, %u\n" (Register.get_64bit reg) value
 
-and compile_binary_operation left op right program file =
+and compile_binary_operation ?(reg = Register.REG_A) left op right program file
+    =
   Printf.fprintf file "; Binary Operation Start: %s\n"
     (stringify_binary_operation (Ast.BinaryOperation { left; op; right }));
   let write str = Printf.fprintf file "%s" str in
-  compile_ast left program file;
-  write "push rbx\npush rax\n";
-  compile_ast right program file;
-  write "mov rbx, rax\npop rax\n";
 
+  (* (match reg with
+     | Register.REG_A | REG_B ->
+         Printf.fprintf file "push r8\npush %s\n" (Register.get_64bit reg)
+     | _ -> ()); *)
+  compile_ast left program file ?reg:(Some Register.REG_A);
+  (* write "push rbx\npush rax\n"; *)
+  write "push rbx\npush rax\n";
+  compile_ast right program file ?reg:(Some Register.REG_B);
+  write "pop rax\n";
+
+  (* write "mov rbx, rax\npop rax\n"; *)
   (match op.value with
   | BinaryOperation.Add -> write "add rax, rbx\n"
   | BinaryOperation.Subtract -> write "sub rax, rbx\n"
@@ -144,11 +156,23 @@ and compile_binary_operation left op right program file =
 
   write "pop rbx\n";
 
+  (* write "pop rbx\n"; *)
+  (* (match reg with
+     | Register.REG_A | REG_B ->
+         let reg = Register.get_64bit reg in
+         Printf.fprintf file "mov r8, %s\npop %s\nmov %s, r8\npop r8\n" reg reg reg
+     | _ -> ()); *)
+  (match reg with
+  | REG_A -> ()
+  | _ ->
+      let reg = Register.get_64bit reg in
+      Printf.fprintf file "mov %s, rax\n" reg);
+
   Printf.fprintf file "; Binary Operation End: %s\n"
     (stringify_binary_operation (Ast.BinaryOperation { left; op; right }));
   ()
 
-and compile_assign (ident : Ast.ident) value (program : Program.t) file =
+and compile_assign ?reg (ident : Ast.ident) value (program : Program.t) file =
   let name = ident.name in
   let variable =
     match Base.Hashtbl.find program.variablesMap name with
@@ -182,16 +206,27 @@ and compile_assign (ident : Ast.ident) value (program : Program.t) file =
       Printf.fprintf file "push rax\n";
       compile_binary_operation bo.left bo.op bo.right program file;
       Printf.fprintf file "mov [rbp %c %u], rax\npop rax\n" sign offset
+      (* Printf.fprintf file "mov [rbp %c %u], rax\n" sign offset *)
+  | Ast.PriorityGroup _ ->
+      Printf.fprintf file "push rax\n";
+      compile_ast value program file ?reg:(Some Register.REG_A);
+      Printf.fprintf file "mov [rbp %c %u], rax\npop rax\n" sign offset
   | _ -> assert false);
+
+  (match reg with
+  | Some reg ->
+      Printf.fprintf file "mov %s, [rbp %c %u]\n" (Register.get_64bit reg) sign
+        offset
+  | None -> ());
 
   Printf.fprintf file "; END %s =\n" name
 
-and compile_ast ast program file =
+and compile_ast ?reg ast program file =
   let write str = Printf.fprintf file "%s" str in
   match ast with
   | Ast.DeclareAssign value ->
-      compile_assign value.ident value.value program file
-  | Ast.Assign value -> compile_assign value.ident value.value program file
+      compile_assign value.ident value.value program file ?reg
+  | Ast.Assign value -> compile_assign value.ident value.value program file ?reg
   | Ast.AlphaPrint value ->
       let name = value.ident.name in
       let variable =
@@ -207,12 +242,12 @@ and compile_ast ast program file =
 
       Printf.fprintf file "mov rdi, [rbp %c %u]\n" sign offset;
       write "call alpha_print\n"
-  | Ast.Ident ident -> compile_ident ident program file
-  | Ast.Lit lit -> compile_lit lit.value file
+  | Ast.Ident ident -> compile_ident ident program file ?reg
+  | Ast.Lit lit -> compile_lit lit.value file ?reg
   | Ast.BinaryOperation bo ->
-      compile_binary_operation bo.left bo.op bo.right program file
+      compile_binary_operation bo.left bo.op bo.right program file ?reg
   | Ast.PriorityGroup pg ->
-      List.iter (fun ast -> compile_ast ast program file) pg.group
+      List.iter (fun ast -> compile_ast ast program file ?reg) pg.group
   | _ ->
       Utils.print_source (Ast.sexp_of_t ast :: []);
       assert false
