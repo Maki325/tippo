@@ -69,8 +69,8 @@ let rec stringify_binary_operation ast : string =
   | Ast.Ident ident -> ident.name
   | Ast.Lit value -> (
       match value.value with Ast.Int value -> Int.to_string value)
-  | Ast.PriorityGroup pg ->
-      "(" ^ stringify_binary_operation (List.nth pg.group 0) ^ ")"
+  | Ast.Priority priority ->
+      "(" ^ stringify_binary_operation priority.inner ^ ")"
   | _ ->
       Utils.print_source (Ast.sexp_of_t ast :: []);
       assert false
@@ -133,17 +133,11 @@ and compile_binary_operation ?(reg = Register.REG_A) left op right program file
     (stringify_binary_operation (Ast.BinaryOperation { left; op; right }));
   let write str = Printf.fprintf file "%s" str in
 
-  (* (match reg with
-     | Register.REG_A | REG_B ->
-         Printf.fprintf file "push r8\npush %s\n" (Register.get_64bit reg)
-     | _ -> ()); *)
   compile_ast left program file ?reg:(Some Register.REG_A);
-  (* write "push rbx\npush rax\n"; *)
   write "push rbx\npush rax\n";
   compile_ast right program file ?reg:(Some Register.REG_B);
   write "pop rax\n";
 
-  (* write "mov rbx, rax\npop rax\n"; *)
   (match op.value with
   | BinaryOperation.Add -> write "add rax, rbx\n"
   | BinaryOperation.Subtract -> write "sub rax, rbx\n"
@@ -156,12 +150,6 @@ and compile_binary_operation ?(reg = Register.REG_A) left op right program file
 
   write "pop rbx\n";
 
-  (* write "pop rbx\n"; *)
-  (* (match reg with
-     | Register.REG_A | REG_B ->
-         let reg = Register.get_64bit reg in
-         Printf.fprintf file "mov r8, %s\npop %s\nmov %s, r8\npop r8\n" reg reg reg
-     | _ -> ()); *)
   (match reg with
   | REG_A -> ()
   | _ ->
@@ -206,10 +194,9 @@ and compile_assign ?reg (ident : Ast.ident) value (program : Program.t) file =
       Printf.fprintf file "push rax\n";
       compile_binary_operation bo.left bo.op bo.right program file;
       Printf.fprintf file "mov [rbp %c %u], rax\npop rax\n" sign offset
-      (* Printf.fprintf file "mov [rbp %c %u], rax\n" sign offset *)
-  | Ast.PriorityGroup _ ->
+  | Ast.Priority priority ->
       Printf.fprintf file "push rax\n";
-      compile_ast value program file ?reg:(Some Register.REG_A);
+      compile_ast priority.inner program file ?reg:(Some Register.REG_A);
       Printf.fprintf file "mov [rbp %c %u], rax\npop rax\n" sign offset
   | _ -> assert false);
 
@@ -246,8 +233,7 @@ and compile_ast ?reg ast program file =
   | Ast.Lit lit -> compile_lit lit.value file ?reg
   | Ast.BinaryOperation bo ->
       compile_binary_operation bo.left bo.op bo.right program file ?reg
-  | Ast.PriorityGroup pg ->
-      List.iter (fun ast -> compile_ast ast program file ?reg) pg.group
+  | Ast.Priority priority -> compile_ast priority.inner program file ?reg
   | _ ->
       Utils.print_source (Ast.sexp_of_t ast :: []);
       assert false

@@ -30,29 +30,20 @@ and parse ?token lexer : Ast.t =
   | _ -> assert false
 
 and parse_priority_group lexer open_paren =
-  let rec parse_group token list =
-    match token with
-    | Token.CloseParen _ -> (List.rev list, token)
-    | _ -> (
-        let list = parse lexer ?token:(Some token) :: list in
-        let last_token = Lexer.get_last_token lexer in
-        match last_token with
-        | CloseParen _ -> (List.rev list, last_token)
-        | _ -> parse_group (Lexer.next_token lexer) list)
-  in
-  let group, close_paren = parse_group (Lexer.next_token lexer) [] in
+  let inner = parse lexer in
 
-  (* While for now we could use this, we'll future proof it *)
-  (* let group, close_paren =
-       ( parse lexer ?token:(Some (Lexer.next_token lexer)) :: [],
-         Lexer.get_last_token lexer )
-     in *)
+  let close_paren = Lexer.get_last_token lexer in
+  if not (TokenType.is_token_type close_paren TokenType.CloseParen) then
+    raise
+      (Exceptions.UnexpectedToken
+         { expected = TokenType.CloseParen; got = close_paren });
+
   let next = Lexer.next_token lexer in
-  let priority_group = Ast.PriorityGroup { open_paren; close_paren; group } in
+  let priority = Ast.Priority { open_paren; close_paren; inner } in
   match next with
-  | Token.Semicolon _ -> priority_group
+  | Token.Semicolon _ -> priority
   | Token.Plus _ | Token.Minus _ | Token.Star _ | Token.Slash _ ->
-      let ast = parse_binary_operation lexer priority_group next in
+      let ast = parse_binary_operation lexer priority next in
       Lexer.assert_last_token_of_type lexer TokenType.Semicolon;
       ast
   | _ ->
