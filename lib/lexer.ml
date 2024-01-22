@@ -61,7 +61,7 @@ let is_whitespace c =
 let rec skip_whitespace lexer =
   match lexer.ch with
   | Some c when is_whitespace c ->
-      if c == '\n' then (
+      if c = '\n' then (
         lexer.row <- lexer.row + 1;
         lexer.col <- 1;
         lexer.last_position <- lexer.position);

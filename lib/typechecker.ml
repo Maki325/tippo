@@ -21,7 +21,7 @@ let rec typecheck (program : Program.t) list =
   match list with
   | [] ->
       Base.Hashtbl.iter program.variablesMap ~f:(fun v ->
-          if v.ty == Type.None then raise (Exceptions.UntypedVariable v.ident));
+          if v.ty = Type.None then raise (Exceptions.UntypedVariable v.ident));
       List.iter
         (fun (variable : Program.variable) ->
           let size = Type.get_byte_size variable.ty in
@@ -36,7 +36,7 @@ let rec typecheck (program : Program.t) list =
           let name = value.ident.name in
           let exists =
             Base.Hashtbl.existsi program.variablesMap ~f:(fun ~key:k ~data:_ ->
-                k == name)
+                k = name)
           in
           (* If it exists, we will throw an error *)
           (* But in the future, when we add scopes, we could allow it to shadow the *)
@@ -55,7 +55,7 @@ let rec typecheck (program : Program.t) list =
           let name = value.ident.name in
           let exists =
             Base.Hashtbl.existsi program.variablesMap ~f:(fun ~key:k ~data:_ ->
-                k == name)
+                k = name)
           in
           (* If it exists, we will throw an error *)
           (* But in the future, when we add scopes, we could allow it to shadow the *)
