@@ -9,7 +9,6 @@ type t = {
   mutable row : int;
   mutable col : int;
   mutable last_position : int;
-  mutable last_token : Token.t;
 }
 [@@deriving sexp]
 
@@ -35,7 +34,6 @@ let from_string ?file_path content =
       row = 1;
       col = 1;
       last_position = 0;
-      last_token = Invalid { col = 0; row = -1; file_path };
     }
   in
   read_char lexer;
@@ -129,7 +127,6 @@ let next_token lexer =
     | _ -> Token.Invalid (create_location lexer 1)
   in
   read_char lexer;
-  lexer.last_token <- token;
   token
 
 (** @raise Exceptions.UnexpectedToken *)
@@ -144,7 +141,6 @@ let peek_token lexer =
   let row = lexer.row in
   let col = lexer.col in
   let last_position = lexer.last_position in
-  let last_token = lexer.last_token in
 
   let token = next_token lexer in
 
@@ -153,21 +149,5 @@ let peek_token lexer =
   lexer.row <- row;
   lexer.col <- col;
   lexer.last_position <- last_position;
-  lexer.last_token <- last_token;
 
   token
-
-let is_last_token_of_type lexer token_type =
-  match TokenType.is_token_type lexer.last_token token_type with
-  | true -> `Same lexer.last_token
-  | false -> `Different
-
-let get_last_token lexer = lexer.last_token
-
-let assert_last_token_of_type lexer token_type =
-  match TokenType.is_token_type lexer.last_token token_type with
-  | true -> ()
-  | false ->
-      raise
-        (Exceptions.UnexpectedToken
-           { expected = token_type; got = lexer.last_token })
