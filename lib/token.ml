@@ -1,11 +1,14 @@
 open Sexplib.Std
 
+type ident_token = { location : Location.t; name : string }
+[@@deriving show { with_path = false }, sexp]
+
 type t =
   | EOF of Location.t
   | Invalid of Location.t
   | Const of Location.t
   | Mut of Location.t
-  | Ident of Location.t * string
+  | Ident of ident_token
   | Int of Location.t * int
   | Assign of Location.t
   | Eq of Location.t

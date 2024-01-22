@@ -66,7 +66,7 @@ let rec stringify_binary_operation ast : string =
       ^ "["
       ^ stringify_binary_operation right
       ^ "]"
-  | Ast.Ident ident -> ident.name
+  | Ast.Ident ident -> ident.token.name
   | Ast.Lit value -> (
       match value.value with Ast.Int value -> Int.to_string value)
   | Ast.Priority priority ->
@@ -112,7 +112,7 @@ and compole_program program file =
 and compile_ident ?(reg = Register.REG_A) (ident : Ast.ident)
     (program : Program.t) file =
   let from =
-    match Base.Hashtbl.find program.variablesMap ident.name with
+    match Base.Hashtbl.find program.variablesMap ident.token.name with
     | None -> assert false
     | Some variable -> variable
   in
@@ -161,7 +161,7 @@ and compile_binary_operation ?(reg = Register.REG_A) left op right program file
   ()
 
 and compile_assign ?reg (ident : Ast.ident) value (program : Program.t) file =
-  let name = ident.name in
+  let name = ident.token.name in
   let variable =
     match Base.Hashtbl.find program.variablesMap name with
     | None -> assert false
@@ -180,7 +180,7 @@ and compile_assign ?reg (ident : Ast.ident) value (program : Program.t) file =
           Printf.fprintf file "mov QWORD [rbp %c %u], %u\n" sign offset value)
   | Ast.Ident ident ->
       let from =
-        match Base.Hashtbl.find program.variablesMap ident.name with
+        match Base.Hashtbl.find program.variablesMap ident.token.name with
         | None -> assert false
         | Some variable -> variable
       in
@@ -215,7 +215,7 @@ and compile_ast ?reg ast program file =
       compile_assign value.ident value.value program file ?reg
   | Ast.Assign value -> compile_assign value.ident value.value program file ?reg
   | Ast.AlphaPrint value ->
-      let name = value.ident.name in
+      let name = value.ident.token.name in
       let variable =
         match Base.Hashtbl.find program.variablesMap name with
         | None -> assert false

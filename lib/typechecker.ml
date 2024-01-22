@@ -2,7 +2,7 @@ let rec extract_type (program : Program.t) ast =
   match ast with
   | Ast.Lit lit -> ( match lit.value with Ast.Int _ -> Type.Int)
   | Ast.Ident ident -> (
-      match Base.Hashtbl.find program.variablesMap ident.name with
+      match Base.Hashtbl.find program.variablesMap ident.token.name with
       | Some variable -> variable.ty
       | None -> raise (Exceptions.UntypedVariable ident))
   | Ast.BinaryOperation bo ->
@@ -33,7 +33,7 @@ let rec typecheck (program : Program.t) list =
   | ast :: rest ->
       (match ast with
       | Ast.DeclareAssign value ->
-          let name = value.ident.name in
+          let name = value.ident.token.name in
           let exists =
             Base.Hashtbl.existsi program.variablesMap ~f:(fun ~key:k ~data:_ ->
                 k = name)
@@ -52,7 +52,7 @@ let rec typecheck (program : Program.t) list =
           program.variables <- program.variables @ [ variable ];
           ()
       | Ast.Declare value ->
-          let name = value.ident.name in
+          let name = value.ident.token.name in
           let exists =
             Base.Hashtbl.existsi program.variablesMap ~f:(fun ~key:k ~data:_ ->
                 k = name)
@@ -70,7 +70,7 @@ let rec typecheck (program : Program.t) list =
           program.variables <- program.variables @ [ variable ];
           ()
       | Ast.Assign value -> (
-          let name = value.ident.name in
+          let name = value.ident.token.name in
           let variable =
             match Base.Hashtbl.find program.variablesMap name with
             | None -> raise (Exceptions.UndeclaredVariable ast)

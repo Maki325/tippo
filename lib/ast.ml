@@ -2,8 +2,10 @@ open Sexplib.Std
 
 type lit_value = Int of int [@@deriving show { with_path = false }, sexp]
 
-type ident = { token : Token.t; name : string }
+type ident = { token : Token.ident_token; ty : Type.t; offset : int }
 [@@deriving show { with_path = false }, sexp]
+
+let create_ident token = { token; ty = Type.None; offset = 0 }
 
 type declaration = { token : Token.t; is_mutable : bool }
 [@@deriving show { with_path = false }, sexp]
@@ -27,3 +29,5 @@ type t =
   | BinaryOperation of { left : t; op : binary_operation; right : t }
   | Priority of { open_paren : Token.t; close_paren : Token.t; inner : t }
 [@@deriving show { with_path = false }, sexp]
+
+let create_ident_ast token = Ident (create_ident token)

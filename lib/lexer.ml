@@ -88,7 +88,7 @@ let rec read_ident lexer start =
       | "const" -> Token.Const (create_location lexer len)
       | "mut" -> Token.Mut (create_location lexer len)
       | "alpha_print" -> Token.AlphaPrint (create_location lexer len)
-      | _ -> Token.Ident (create_location lexer len, value))
+      | _ -> Token.Ident { location = create_location lexer len; name = value })
 
 let rec read_int lexer start =
   let start =

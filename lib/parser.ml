@@ -15,16 +15,16 @@ and parse ?token lexer : Ast.t =
     | Token.Const _ -> (parse_declaration lexer token false, false)
     | Token.Mut _ -> (parse_declaration lexer token true, false)
     | Token.Int (_, value) -> (Ast.Lit { token; value = Ast.Int value }, true)
-    | Token.Ident (_, value) -> (Ast.Ident { token; name = value }, true)
+    | Token.Ident ident_inner -> (Ast.create_ident_ast ident_inner, true)
     | Token.AlphaPrint _ ->
         let ident = Lexer.expect_token lexer TokenType.Ident in
-        let name =
-          match ident with Token.Ident (_, value) -> value | _ -> assert false
+        let ident_inner =
+          match ident with Token.Ident value -> value | _ -> assert false
         in
         ( Ast.AlphaPrint
             {
               token;
-              ident = { token = ident; name };
+              ident = Ast.create_ident ident_inner;
               semicolon = Lexer.expect_token lexer TokenType.Semicolon;
             },
           false )
@@ -63,15 +63,15 @@ and parse_priority lexer open_paren =
 
 and parse_declaration lexer declaration is_mutable =
   let ident = Lexer.expect_token lexer TokenType.Ident in
-  let name =
-    match ident with Token.Ident (_, value) -> value | _ -> assert false
+  let ident_inner =
+    match ident with Token.Ident value -> value | _ -> assert false
   in
   let next = Lexer.next_token lexer in
   match next with
   | Token.Semicolon _ ->
       Ast.Declare
         {
-          ident = { token = ident; name };
+          ident = Ast.create_ident ident_inner;
           declaration = { token = declaration; is_mutable };
           semicolon = next;
         }
@@ -80,7 +80,7 @@ and parse_declaration lexer declaration is_mutable =
       let semicolon = Lexer.expect_token lexer TokenType.Semicolon in
       Ast.DeclareAssign
         {
-          ident = { token = ident; name };
+          ident = Ast.create_ident ident_inner;
           declaration = { token = declaration; is_mutable };
           eq = next;
           value;
